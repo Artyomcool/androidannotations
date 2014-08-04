@@ -123,16 +123,43 @@ public class BackgroundExecutor {
 	 *             executor)
 	 */
 	public static synchronized void execute(Task task) {
-		Future<?> future = null;
-		if (task.serial == null || !hasSerialRunning(task.serial)) {
-			task.executionAsked = true;
-			future = directExecute(task, task.remainingDelay);
+		proxyExecutor.execute(task);
+	}
+
+	public interface ProxyBackgroundExecutor {
+		public void execute(Task task);
+		public String getBackgroundSerial();
+	}
+
+	private static ProxyBackgroundExecutor proxyExecutor = new ProxyBackgroundExecutor() {
+		@Override
+		public void execute(Task task) {
+			Future<?> future = null;
+			if (task.serial == null || !hasSerialRunning(task.serial)) {
+				task.executionAsked = true;
+				future = directExecute(task, task.remainingDelay);
+			}
+			if (task.id != null || task.serial != null) {
+				/* keep task */
+				task.future = future;
+				tasks.add(task);
+			}
 		}
-		if (task.id != null || task.serial != null) {
-			/* keep task */
-			task.future = future;
-			tasks.add(task);
+
+		public String getBackgroundSerial() {
+			return currentSerial.get();
 		}
+	};
+
+	public static ProxyBackgroundExecutor getProxyExecutor() {
+		return proxyExecutor;
+	}
+
+	public static synchronized void setProxyExecutor(ProxyBackgroundExecutor customProxy) {
+		if (customProxy == null) {
+			throw new NullPointerException();
+		}
+		proxyExecutor = customProxy;
 	}
 
 	/**
@@ -379,6 +406,14 @@ public class BackgroundExecutor {
 			if (!"".equals(serial)) {
 				this.serial = serial;
 			}
+		}
+
+		public String getSerial() {
+			return serial;
+		}
+
+		public int getDelay() {
+			return remainingDelay;
 		}
 
 		@Override
