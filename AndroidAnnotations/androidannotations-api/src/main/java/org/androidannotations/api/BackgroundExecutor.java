@@ -314,15 +314,6 @@ public class BackgroundExecutor {
             wrongThreadListener.onUiExpected();
         }
     }
-	/**
-	 * Checks if the current thread is UI thread and notifies
-	 * {@link BackgroundExecutor.WrongThreadListener#onUiExpected()} if it doesn't.
-	 */
-	public static void checkUiThread() {
-		if (Looper.getMainLooper().getThread() != Thread.currentThread()) {
-			wrongThreadListener.onUiExpected();
-		}
-	}
 
 	/**
 	 * Checks if the current thread is a background thread and, optionally, restricts it
