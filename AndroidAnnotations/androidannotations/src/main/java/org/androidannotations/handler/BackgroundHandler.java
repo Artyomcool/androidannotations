@@ -54,6 +54,22 @@ public class BackgroundHandler extends AbstractRunnableHandler {
 
 		JBlock previousMethodBody = codeModelHelper.removeBody(delegatingMethod);
 
+        JClass backgroundExecutorClass = refClass(BackgroundExecutor.class);
+
+        Background annotation = element.getAnnotation(Background.class);
+        String serial = annotation.serial();
+        String id = annotation.id();
+        int delay = annotation.delay();
+        if (annotation.propagation() == Background.Propagation.REUSE) {
+            JInvocation executeCall = backgroundExecutorClass.staticInvoke("checkForReuse")
+                    .arg(serial);
+            delegatingMethod.body()
+                    ._if(executeCall)
+                    ._then()
+                    .add(previousMethodBody)
+                    ._return();
+        }
+
 		JDefinedClass anonymousTaskClass = codeModel().anonymousClass(BackgroundExecutor.Task.class);
 
 		JMethod executeMethod = anonymousTaskClass.method(JMod.PUBLIC, codeModel().VOID, "execute");
@@ -71,12 +87,6 @@ public class BackgroundHandler extends AbstractRunnableHandler {
 				.arg(caughtException);
 		catchBlock.body().add(uncaughtExceptionCall);
 
-		Background annotation = element.getAnnotation(Background.class);
-		String id = annotation.id();
-		int delay = annotation.delay();
-		String serial = annotation.serial();
-
-		JClass backgroundExecutorClass = refClass(BackgroundExecutor.class);
 		JInvocation newTask = _new(anonymousTaskClass).arg(lit(id)).arg(lit(delay)).arg(lit(serial));
 		JInvocation executeCall = backgroundExecutorClass.staticInvoke("execute").arg(newTask);
 

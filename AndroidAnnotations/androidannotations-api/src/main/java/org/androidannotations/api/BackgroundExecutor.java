@@ -162,7 +162,18 @@ public class BackgroundExecutor {
 		proxyExecutor = customProxy;
 	}
 
-	/**
+    public static boolean checkForReuse(String serial) {
+        if (serial == null || serial.equals("")) {
+            return !isUiThread();
+        }
+        return serial.equals(currentSerial.get());
+    }
+
+    private static boolean isUiThread() {
+        return Looper.getMainLooper().getThread() == Thread.currentThread();
+    }
+
+    /**
 	 * Execute a task.
 	 * 
 	 * @param runnable
@@ -294,6 +305,15 @@ public class BackgroundExecutor {
 		}
 	}
 
+    /**
+     * Checks if current thread is UI and notifies
+     * {@link BackgroundExecutor.WrongThreadListener#onUiExpected()} if it doesn't.
+     */
+    public static void checkUiThread() {
+        if (!isUiThread()) {
+            wrongThreadListener.onUiExpected();
+        }
+    }
 	/**
 	 * Checks if the current thread is UI thread and notifies
 	 * {@link BackgroundExecutor.WrongThreadListener#onUiExpected()} if it doesn't.

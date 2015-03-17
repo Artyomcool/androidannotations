@@ -196,4 +196,10 @@ public @interface Background {
 	 * @return the serial execution group
 	 **/
 	String serial() default "";
+
+    Propagation propagation() default Propagation.ENQUEUE;
+
+    public enum Propagation {
+        ENQUEUE, REUSE
+    }
 }
