@@ -17,6 +17,7 @@ package org.androidannotations.eviewgroup;
 
 import org.androidannotations.annotations.EViewGroup;
 import org.androidannotations.annotations.UiThread;
+import org.androidannotations.custom.IgnoreExceptions;
 
 import android.content.Context;
 import android.widget.FrameLayout;
@@ -47,6 +48,16 @@ public class SomeGenericViewGroup<T extends CharSequence> extends FrameLayout {
 
 	@UiThread
 	void someGenericMethod2(T type) {
+	}
+
+	@IgnoreExceptions
+	void safe() {
+
+	}
+
+	@IgnoreExceptions
+	int safe2() {
+		return -1;
 	}
 
 }

@@ -23,14 +23,20 @@ import java.util.Set;
 
 import javax.lang.model.element.Element;
 import javax.lang.model.element.TypeElement;
+import javax.lang.model.type.TypeMirror;
 
 public class AnnotationElementsHolder implements AnnotationElements {
 
 	private final Map<String, Set<? extends Element>> rootAnnotatedElementsByAnnotation = new HashMap<String, Set<? extends Element>>();
 	private final Map<String, Set<AnnotatedAndRootElements>> ancestorAnnotatedElementsByAnnotation = new HashMap<String, Set<AnnotatedAndRootElements>>();
+	private final Map<String, TypeMirror> decoratorHandlers = new HashMap<String, TypeMirror>();
 
 	public void putRootAnnotatedElements(String annotationName, Set<? extends Element> annotatedElements) {
 		rootAnnotatedElementsByAnnotation.put(annotationName, annotatedElements);
+	}
+
+	public void putDecorator(String annotationName, TypeMirror handler) {
+		decoratorHandlers.put(annotationName, handler);
 	}
 
 	public void putAncestorAnnotatedElement(String annotationName, Element annotatedElement, TypeElement rootTypeElement) {
@@ -73,10 +79,14 @@ public class AnnotationElementsHolder implements AnnotationElements {
 		return allElements;
 	}
 
+	@Override
+	public Map<String, TypeMirror> getDecorators() {
+		return Collections.unmodifiableMap(decoratorHandlers);
+	}
+
 	public AnnotationElementsHolder validatingHolder() {
 		AnnotationElementsHolder holder = new AnnotationElementsHolder();
 		holder.ancestorAnnotatedElementsByAnnotation.putAll(ancestorAnnotatedElementsByAnnotation);
 		return holder;
 	}
-
 }

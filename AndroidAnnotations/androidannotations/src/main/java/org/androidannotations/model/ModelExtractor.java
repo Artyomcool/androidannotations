@@ -15,18 +15,20 @@
  */
 package org.androidannotations.model;
 
+import org.androidannotations.annotations.Decorator;
+import org.androidannotations.annotations.SystemService;
+
 import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 
 import javax.annotation.processing.RoundEnvironment;
-import javax.lang.model.element.AnnotationMirror;
-import javax.lang.model.element.Element;
-import javax.lang.model.element.ElementKind;
-import javax.lang.model.element.TypeElement;
+import javax.lang.model.element.*;
 import javax.lang.model.type.DeclaredType;
 import javax.lang.model.type.TypeKind;
 import javax.lang.model.type.TypeMirror;
+import javax.lang.model.util.Types;
 
 public class ModelExtractor {
 
@@ -93,7 +95,8 @@ public class ModelExtractor {
 		List<? extends AnnotationMirror> ancestorEnclosedElementAnnotations = ancestorEnclosedElement.getAnnotationMirrors();
 		for (AnnotationMirror annotationMirror : ancestorEnclosedElementAnnotations) {
 			DeclaredType annotationType = annotationMirror.getAnnotationType();
-			if (annotationTypesToCheck.contains(annotationType.toString())) {
+			String annotationName = annotationType.toString();
+			if (supportsAnnotation(annotationTypesToCheck, annotationName)) {
 				TypeElement annotation = (TypeElement) annotationType.asElement();
 
 				/*
@@ -107,8 +110,34 @@ public class ModelExtractor {
 				 */
 
 				extractedModel.putAncestorAnnotatedElement(annotation.getQualifiedName().toString(), ancestorEnclosedElement, rootTypeElement);
+
+				for (AnnotationMirror a : annotation.getAnnotationMirrors()) {
+					TypeElement t = (TypeElement) a.getAnnotationType().asElement();
+					if (t.getQualifiedName().contentEquals(Decorator.class.getName())) {
+						for (Map.Entry<? extends ExecutableElement, ? extends AnnotationValue> entry : a.getElementValues().entrySet()) {
+							if (entry.getKey().getSimpleName().contentEquals("value")) {
+								TypeMirror value = (TypeMirror) entry.getValue().getValue();
+								extractedModel.putDecorator(annotation.getQualifiedName().toString(), value);
+							}
+						}
+					}
+				}
 			}
 		}
+	}
+
+	private boolean supportsAnnotation(Set<String> supportedAnnotations, String annotationName) {
+		if (supportedAnnotations.contains(annotationName)) {
+			return true;
+		}
+		int lastDot;
+		while ((lastDot = annotationName.lastIndexOf('.')) != -1) {
+			annotationName = annotationName.substring(0, lastDot);
+			if (supportedAnnotations.contains(annotationName + ".*")) {
+				return true;
+			}
+		}
+		return supportedAnnotations.contains("*");
 	}
 
 	/**

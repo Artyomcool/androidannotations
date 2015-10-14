@@ -19,6 +19,7 @@ import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.net.URL;
 import java.util.Iterator;
+import java.util.Map;
 import java.util.Properties;
 import java.util.Set;
 
@@ -27,18 +28,20 @@ import javax.annotation.processing.ProcessingEnvironment;
 import javax.annotation.processing.RoundEnvironment;
 import javax.lang.model.SourceVersion;
 import javax.lang.model.element.Element;
+import javax.lang.model.element.ExecutableElement;
 import javax.lang.model.element.TypeElement;
+import javax.lang.model.type.TypeMirror;
 
+import com.sun.codemodel.*;
 import org.androidannotations.annotations.EActivity;
+import org.androidannotations.api.decorator.DecoratorExecutor;
 import org.androidannotations.exception.ProcessingException;
 import org.androidannotations.exception.VersionMismatchException;
 import org.androidannotations.generation.CodeModelGenerator;
 import org.androidannotations.handler.AnnotationHandlers;
-import org.androidannotations.helper.AndroidManifest;
-import org.androidannotations.helper.AndroidManifestFinder;
-import org.androidannotations.helper.ErrorHelper;
-import org.androidannotations.helper.Option;
-import org.androidannotations.helper.OptionsHelper;
+import org.androidannotations.handler.BaseAnnotationHandler;
+import org.androidannotations.helper.*;
+import org.androidannotations.holder.GeneratedClassHolder;
 import org.androidannotations.logger.Level;
 import org.androidannotations.logger.Logger;
 import org.androidannotations.logger.LoggerContext;
@@ -47,6 +50,7 @@ import org.androidannotations.model.AndroidSystemServices;
 import org.androidannotations.model.AnnotationElements;
 import org.androidannotations.model.AnnotationElementsHolder;
 import org.androidannotations.model.ModelExtractor;
+import org.androidannotations.process.IsValid;
 import org.androidannotations.process.ModelProcessor;
 import org.androidannotations.process.ModelValidator;
 import org.androidannotations.process.TimeStats;
@@ -54,6 +58,9 @@ import org.androidannotations.rclass.AndroidRClassFinder;
 import org.androidannotations.rclass.CoumpoundRClass;
 import org.androidannotations.rclass.IRClass;
 import org.androidannotations.rclass.ProjectRClassFinder;
+
+import static com.sun.codemodel.JExpr._new;
+import static com.sun.codemodel.JExpr.dotclass;
 
 public class AndroidAnnotationProcessor extends AbstractProcessor {
 
@@ -160,6 +167,35 @@ public class AndroidAnnotationProcessor extends AbstractProcessor {
 		}
 
 		AnnotationElementsHolder extractedModel = extractAnnotations(annotations, roundEnv);
+
+		final APTCodeModelHelper codeModelHelper = new APTCodeModelHelper();
+
+		for (final Map.Entry<String, TypeMirror> entry : extractedModel.getDecorators().entrySet()) {
+			System.out.println(entry.getKey());
+			annotationHandlers.add(new BaseAnnotationHandler<GeneratedClassHolder>(entry.getKey(), processingEnv) {
+				@Override
+				protected void validate(Element element, AnnotationElements validatedElements, IsValid valid) {
+
+				}
+
+				@Override
+				public void process(Element element, GeneratedClassHolder holder) throws Exception {
+					ExecutableElement executableElement = (ExecutableElement) element;
+					JMethod delegatingMethod = codeModelHelper.overrideAnnotatedMethod(executableElement, holder);
+					JBlock previousBody = codeModelHelper.removeBody(delegatingMethod);
+					JDefinedClass anonymousRunnableClass = codeModelHelper.createDelegatingAnonymousCallableClass(holder, previousBody, delegatingMethod);
+					JClass clazz = codeModelHelper.typeMirrorToJClass(entry.getValue(), holder);
+
+					JInvocation call = refClass(DecoratorExecutor.class).staticInvoke("call");
+					call.arg(dotclass(clazz)).arg(_new(anonymousRunnableClass));
+					if (delegatingMethod.type().name().equals("void")) {
+						delegatingMethod.body().add(call);
+					} else {
+						delegatingMethod.body()._return(call);
+					}
+				}
+			});
+		}
 
 		Option<AndroidManifest> androidManifestOption = extractAndroidManifest();
 		if (androidManifestOption.isAbsent()) {

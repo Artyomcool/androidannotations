@@ -346,7 +346,7 @@ public class ProcessorTestHelper {
 		String[] childs = outputDir.list();
 
 		if (childs != null && childs.length > 0) {
-			deleteDirectoryRecursively(outputDir);
+			//deleteDirectoryRecursively(outputDir);
 			outputDir.mkdirs();
 		}
 	}
