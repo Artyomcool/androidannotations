@@ -219,9 +219,25 @@ public class BackgroundExecutor {
 	 * 
 	 * @param executor
 	 *            the new executor
+	 *
+	 * @return Previous executor
 	 */
-	public static void setExecutor(Executor executor) {
+	public static Executor setExecutor(Executor executor) {
+		Executor prevExecutor = BackgroundExecutor.executor;
 		BackgroundExecutor.executor = executor;
+		return prevExecutor;
+	}
+
+	public static boolean isProperBackgroundThread(String serial) {
+		if (serial == null || "".equals(serial)) {
+			return !isUiThread();
+		} else {
+			return serial.equals(CURRENT_SERIAL.get());
+		}
+	}
+
+	private static boolean isUiThread() {
+		return Looper.getMainLooper().getThread() == Thread.currentThread();
 	}
 
 	/**
@@ -275,7 +291,7 @@ public class BackgroundExecutor {
 	 * doesn't.
 	 */
 	public static void checkUiThread() {
-		if (Looper.getMainLooper().getThread() != Thread.currentThread()) {
+		if (!isUiThread()) {
 			wrongThreadListener.onUiExpected();
 		}
 	}
@@ -431,6 +447,9 @@ public class BackgroundExecutor {
 			}
 		}
 
+		public String getSerial() {
+			return serial;
+		}
 	}
 
 	/**
