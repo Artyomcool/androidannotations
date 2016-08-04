@@ -15,10 +15,6 @@
  */
 package org.androidannotations.model;
 
-import java.util.HashSet;
-import java.util.List;
-import java.util.Set;
-
 import javax.annotation.processing.RoundEnvironment;
 import javax.lang.model.element.AnnotationMirror;
 import javax.lang.model.element.Element;
@@ -27,6 +23,9 @@ import javax.lang.model.element.TypeElement;
 import javax.lang.model.type.DeclaredType;
 import javax.lang.model.type.TypeKind;
 import javax.lang.model.type.TypeMirror;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Set;
 
 public class ModelExtractor {
 
@@ -73,16 +72,14 @@ public class ModelExtractor {
 		for (TypeElement rootTypeElement : rootTypeElements) {
 			Set<TypeElement> ancestors = new HashSet<TypeElement>();
 			addAncestorsElements(ancestors, rootTypeElement);
-			if (!ancestors.isEmpty()) {
 
-				for (TypeElement ancestor : ancestors) {
-					extractAnnotations(extractedModel, annotationTypesToCheck, rootTypeElement, ancestor);
+			for (TypeElement ancestor : ancestors) {
+				extractAnnotations(extractedModel, annotationTypesToCheck, rootTypeElement, ancestor);
 
-					for (Element ancestorEnclosedElement : ancestor.getEnclosedElements()) {
-						ElementKind enclosedKind = ancestorEnclosedElement.getKind();
-						if (enclosedKind == ElementKind.FIELD || enclosedKind == ElementKind.METHOD) {
-							extractAnnotations(extractedModel, annotationTypesToCheck, rootTypeElement, ancestorEnclosedElement);
-						}
+				for (Element ancestorEnclosedElement : ancestor.getEnclosedElements()) {
+					ElementKind enclosedKind = ancestorEnclosedElement.getKind();
+					if (enclosedKind == ElementKind.FIELD || enclosedKind == ElementKind.METHOD) {
+						extractAnnotations(extractedModel, annotationTypesToCheck, rootTypeElement, ancestorEnclosedElement);
 					}
 				}
 			}
@@ -93,7 +90,8 @@ public class ModelExtractor {
 		List<? extends AnnotationMirror> ancestorEnclosedElementAnnotations = ancestorEnclosedElement.getAnnotationMirrors();
 		for (AnnotationMirror annotationMirror : ancestorEnclosedElementAnnotations) {
 			DeclaredType annotationType = annotationMirror.getAnnotationType();
-			if (annotationTypesToCheck.contains(annotationType.toString())) {
+			String annotationName = annotationType.toString();
+			if (supportsAnnotation(annotationTypesToCheck, annotationName)) {
 				TypeElement annotation = (TypeElement) annotationType.asElement();
 
 				/*
@@ -109,6 +107,20 @@ public class ModelExtractor {
 				extractedModel.putAncestorAnnotatedElement(annotation.getQualifiedName().toString(), ancestorEnclosedElement, rootTypeElement);
 			}
 		}
+	}
+
+	private boolean supportsAnnotation(Set<String> supportedAnnotations, String annotationName) {
+		if (supportedAnnotations.contains(annotationName)) {
+			return true;
+		}
+		int lastDot;
+		while ((lastDot = annotationName.lastIndexOf('.')) != -1) {
+			annotationName = annotationName.substring(0, lastDot);
+			if (supportedAnnotations.contains(annotationName + ".*")) {
+				return true;
+			}
+		}
+		return supportedAnnotations.contains("*");
 	}
 
 	/**

@@ -27,7 +27,7 @@
 
 	<groupId>org.androidannotations</groupId>
 	<artifactId>androidannotations-parent</artifactId>
-	<version>3.3.2-m10</version>
+	<version>3.3.2-m11</version>
 	<packaging>pom</packaging>
 
 	<name>AndroidAnnotations Parent</name>
@@ -116,7 +116,7 @@
 	</properties>
 	
 	<prerequisites>
-		<maven>3.1.1</maven>
+		<maven>3.0.5</maven>
 	</prerequisites>
 
 	<modules>
@@ -310,7 +310,7 @@
 						<configuration>
 							<rules>
 								<requireMavenVersion>
-									<version>3.1.1</version>
+									<version>3.0.5</version>
 								</requireMavenVersion>
 							</rules>
 						</configuration>
@@ -324,7 +324,7 @@
 		<connection>scm:git:git@github.com:excilys/androidannotations.git</connection>
 		<developerConnection>scm:git:git@github.com:excilys/androidannotations.git</developerConnection>
 		<url>https://github.com/excilys/androidannotations</url>
-		<tag>androidannotations-3.3.2-m10</tag>
+		<tag>androidannotations-3.3.2-m11</tag>
 	</scm>
 
 	<profiles>

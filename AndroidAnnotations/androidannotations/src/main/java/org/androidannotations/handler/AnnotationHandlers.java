@@ -210,6 +210,7 @@ public class AnnotationHandlers {
 			for (AnnotationHandler<?> annotationHandler : annotationHandlers) {
 				annotationNames.add(annotationHandler.getTarget());
 			}
+			annotationNames.add("org.androidannotations.custom.*");
 			supportedAnnotationNames = Collections.unmodifiableSet(annotationNames);
 		}
 		return supportedAnnotationNames;

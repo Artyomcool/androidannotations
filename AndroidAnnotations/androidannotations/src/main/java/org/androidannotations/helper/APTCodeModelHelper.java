@@ -17,6 +17,7 @@ package org.androidannotations.helper;
 
 import static com.sun.codemodel.JExpr._new;
 import static com.sun.codemodel.JExpr.lit;
+import static com.sun.codemodel.JExpr._new;
 import static org.androidannotations.helper.ModelConstants.GENERATION_SUFFIX;
 
 import java.io.StringWriter;
@@ -47,6 +48,7 @@ import javax.lang.model.util.ElementFilter;
 import javax.lang.model.util.Types;
 
 import org.androidannotations.annotations.EBean;
+import org.androidannotations.api.decorator.MethodCallable;
 import org.androidannotations.holder.EBeanHolder;
 import org.androidannotations.holder.EComponentHolder;
 import org.androidannotations.holder.GeneratedClassHolder;
@@ -68,8 +70,35 @@ import com.sun.codemodel.JMethod;
 import com.sun.codemodel.JMod;
 import com.sun.codemodel.JStatement;
 import com.sun.codemodel.JSuperWildcard;
+import com.sun.codemodel.JSwitch;
 import com.sun.codemodel.JType;
 import com.sun.codemodel.JVar;
+
+import javax.lang.model.element.AnnotationMirror;
+import javax.lang.model.element.AnnotationValue;
+import javax.lang.model.element.Element;
+import javax.lang.model.element.ExecutableElement;
+import javax.lang.model.element.TypeElement;
+import javax.lang.model.element.TypeParameterElement;
+import javax.lang.model.element.VariableElement;
+import javax.lang.model.type.ArrayType;
+import javax.lang.model.type.DeclaredType;
+import javax.lang.model.type.TypeKind;
+import javax.lang.model.type.TypeMirror;
+import javax.lang.model.type.WildcardType;
+import javax.lang.model.util.ElementFilter;
+import javax.lang.model.util.Types;
+import java.io.StringWriter;
+import java.lang.annotation.Annotation;
+import java.lang.reflect.Field;
+import java.lang.reflect.Method;
+import java.util.*;
+import java.util.concurrent.Callable;
+
+import static com.sun.codemodel.JExpr._new;
+import static com.sun.codemodel.JExpr._null;
+import static com.sun.codemodel.JExpr.lit;
+import static org.androidannotations.helper.ModelConstants.GENERATION_SUFFIX;
 
 public class APTCodeModelHelper {
 
@@ -158,7 +187,7 @@ public class APTCodeModelHelper {
 	}
 
 	public JClass typeBoundsToJClass(GeneratedClassHolder holder, List<? extends TypeMirror> bounds) {
-		return typeBoundsToJClass(holder, bounds, Collections.<String, TypeMirror> emptyMap());
+		return typeBoundsToJClass(holder, bounds, Collections.<String, TypeMirror>emptyMap());
 	}
 
 	private JClass typeBoundsToJClass(GeneratedClassHolder holder, List<? extends TypeMirror> bounds, Map<String, TypeMirror> actualTypes) {
@@ -193,7 +222,7 @@ public class APTCodeModelHelper {
 		}
 
 		String methodName = executableElement.getSimpleName().toString();
-		JClass returnType = typeMirrorToJClass(executableElement.getReturnType(), holder, actualTypes);
+		JType returnType = getReturnType(executableElement, holder, actualTypes);
 		JMethod method = holder.getGeneratedClass().method(JMod.PUBLIC, returnType, methodName);
 		addNonAAAnotations(method, executableElement.getAnnotationMirrors(), holder);
 
@@ -217,6 +246,14 @@ public class APTCodeModelHelper {
 		callSuperMethod(method, holder, method.body());
 
 		return method;
+	}
+
+	private JType getReturnType(ExecutableElement executableElement, GeneratedClassHolder holder, Map<String, TypeMirror> actualTypes) {
+		TypeMirror returnType = executableElement.getReturnType();
+		if (returnType.getKind().isPrimitive()) {
+			return JType.parse(holder.codeModel(), returnType.toString());
+		}
+		return typeMirrorToJClass(returnType, holder, actualTypes);
 	}
 
 	public void generifyStaticHelper(GeneratedClassHolder holder, JMethod staticHelper, TypeElement annotatedClass) {
@@ -398,7 +435,21 @@ public class APTCodeModelHelper {
 		throw new IllegalStateException("Unable to extract target name from JFieldRef");
 	}
 
-	public JDefinedClass createDelegatingAnonymousRunnableClass(EComponentHolder holder, JBlock previousBody) {
+	public Set<JClass> getThrows(JMethod method) {
+		try {
+			Method throwsMethod = JMethod.class.getDeclaredMethod("getThrows");
+			throwsMethod.setAccessible(true);
+
+			@SuppressWarnings("unchecked")
+			Set<JClass> result = (Set<JClass>) throwsMethod.invoke(method);
+
+			return result;
+		} catch (Exception e) {
+			throw new RuntimeException(e);
+		}
+	}
+
+	public JDefinedClass createDelegatingAnonymousRunnableClass(GeneratedClassHolder holder, JBlock previousBody) {
 		JCodeModel codeModel = holder.codeModel();
 
 		JDefinedClass anonymousRunnableClass = codeModel.anonymousClass(Runnable.class);
@@ -408,6 +459,66 @@ public class APTCodeModelHelper {
 		runMethod.body().add(previousBody);
 
 		return anonymousRunnableClass;
+	}
+
+	public JDefinedClass createMethodCallableClass(GeneratedClassHolder holder, JBlock previousBody, JMethod original) {
+		JCodeModel codeModel = holder.codeModel();
+
+		boolean addReturnNull = false;
+		JType type = original.type();
+
+		if (type.fullName().equals("void")){
+			addReturnNull = true;
+			type = codeModel.ref(Void.class);
+		} else if (type.isPrimitive()) {
+			type = type.boxify();
+		}
+
+		JClass genericCallable = codeModel.ref(MethodCallable.class).narrow(type);
+
+		JDefinedClass anonymousRunnableClass = codeModel.anonymousClass(genericCallable);
+
+		JMethod runMethod = anonymousRunnableClass.method(JMod.PUBLIC, type, "call");
+		copyThrows(original, runMethod);
+		runMethod.annotate(Override.class);
+		runMethod.body().add(previousBody);
+
+		if (addReturnNull) {
+			runMethod.body()._return(_null());
+		}
+
+		int paramsCount = original.params().size();
+
+		JMethod getArgumentCountMethod = anonymousRunnableClass.method(JMod.PUBLIC, Integer.TYPE, "getArgumentCount");
+		getArgumentCountMethod.annotate(Override.class);
+		getArgumentCountMethod.body()._return(JExpr.lit(paramsCount));
+
+		JMethod getArgumentNameMethod = anonymousRunnableClass.method(JMod.PUBLIC, String.class, "getArgumentName");
+		getArgumentNameMethod.annotate(Override.class);
+		JVar nameIndex = getArgumentNameMethod.param(Integer.TYPE, "index");
+		JSwitch nameSwitch = getArgumentNameMethod.body()._switch(nameIndex);
+
+		JMethod getArgumentValueMethod = anonymousRunnableClass.method(JMod.PUBLIC, Object.class, "getArgumentValue");
+		getArgumentValueMethod.annotate(Override.class);
+		JVar valueIndex = getArgumentValueMethod.param(Integer.TYPE, "index");
+		JSwitch valueSwitch = getArgumentValueMethod.body()._switch(valueIndex);
+
+
+		for (int i = 0; i < paramsCount; i++) {
+			nameSwitch._case(JExpr.lit(i)).body()._return(JExpr.lit(original.params().get(i).name()));
+			valueSwitch._case(JExpr.lit(i)).body()._return(original.params().get(i));
+		}
+		JInvocation indexOutOfBounds = _new(codeModel.ref(IndexOutOfBoundsException.class));
+		nameSwitch._default().body()._throw(indexOutOfBounds);
+		valueSwitch._default().body()._throw(indexOutOfBounds);
+
+		return anonymousRunnableClass;
+	}
+
+	public void copyThrows(JMethod original, JMethod dst) {
+		for (JClass t : getThrows(original)) {
+			dst._throws(t);
+		}
 	}
 
 	/**

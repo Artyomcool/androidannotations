@@ -15,10 +15,12 @@
  */
 package org.androidannotations.model;
 
+import java.util.Map;
 import java.util.Set;
 
 import javax.lang.model.element.Element;
 import javax.lang.model.element.TypeElement;
+import javax.lang.model.type.TypeMirror;
 
 public interface AnnotationElements {
 
@@ -37,5 +39,7 @@ public interface AnnotationElements {
 	Set<? extends Element> getRootAnnotatedElements(String annotationName);
 
 	Set<AnnotatedAndRootElements> getAncestorAnnotatedElements(String annotationName);
+
+	Map<String, TypeMirror> getDecorators();
 
 }
