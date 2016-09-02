@@ -1,5 +1,7 @@
 package org.androidannotations.api.decorator;
 
-public interface DecoratorHandler {
-    <T> T call(MethodCallable<T> callable) throws Exception;
+import java.lang.annotation.Annotation;
+
+public interface DecoratorHandler<A extends Annotation> {
+    <T> T call(MethodCallable<T, ? extends A> callable) throws Exception;
 }

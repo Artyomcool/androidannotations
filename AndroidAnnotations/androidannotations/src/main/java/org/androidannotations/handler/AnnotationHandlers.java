@@ -51,6 +51,7 @@ public class AnnotationHandlers {
 	public AnnotationHandlers(ProcessingEnvironment processingEnvironment) {
 		optionsHelper = new OptionsHelper(processingEnvironment);
 
+		add(new DecoratorHandler(processingEnvironment));
 		add(new EApplicationHandler(processingEnvironment));
 		add(new EActivityHandler(processingEnvironment));
 		add(new EProviderHandler(processingEnvironment));

@@ -29,14 +29,14 @@ public class AnnotationElementsHolder implements AnnotationElements {
 
 	private final Map<String, Set<? extends Element>> rootAnnotatedElementsByAnnotation = new HashMap<String, Set<? extends Element>>();
 	private final Map<String, Set<AnnotatedAndRootElements>> ancestorAnnotatedElementsByAnnotation = new HashMap<String, Set<AnnotatedAndRootElements>>();
-	private final Map<String, TypeMirror> decoratorHandlers = new HashMap<String, TypeMirror>();
+	private final Map<TypeElement, TypeMirror> decoratorHandlers = new HashMap<TypeElement, TypeMirror>();
 
 	public void putRootAnnotatedElements(String annotationName, Set<? extends Element> annotatedElements) {
 		rootAnnotatedElementsByAnnotation.put(annotationName, annotatedElements);
 	}
 
-	public void putDecorator(String annotationName, TypeMirror handler) {
-		decoratorHandlers.put(annotationName, handler);
+	public void putDecorator(TypeElement annotation, TypeMirror handler) {
+		decoratorHandlers.put(annotation, handler);
 	}
 
 	public void putAncestorAnnotatedElement(String annotationName, Element annotatedElement, TypeElement rootTypeElement) {
@@ -80,7 +80,7 @@ public class AnnotationElementsHolder implements AnnotationElements {
 	}
 
 	@Override
-	public Map<String, TypeMirror> getDecorators() {
+	public Map<TypeElement, TypeMirror> getDecorators() {
 		return Collections.unmodifiableMap(decoratorHandlers);
 	}
 

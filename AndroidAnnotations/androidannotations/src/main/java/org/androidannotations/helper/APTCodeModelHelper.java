@@ -15,89 +15,26 @@
  */
 package org.androidannotations.helper;
 
-import static com.sun.codemodel.JExpr._new;
-import static com.sun.codemodel.JExpr.lit;
-import static com.sun.codemodel.JExpr._new;
-import static org.androidannotations.helper.ModelConstants.GENERATION_SUFFIX;
+import android.util.Log;
+import com.sun.codemodel.*;
+import org.androidannotations.annotations.EBean;
+import org.androidannotations.api.decorator.MethodCallable;
+import org.androidannotations.holder.EBeanHolder;
+import org.androidannotations.holder.GeneratedClassHolder;
 
+import javax.lang.model.element.*;
+import javax.lang.model.type.*;
+import javax.lang.model.util.ElementFilter;
+import javax.lang.model.util.Elements;
+import javax.lang.model.util.Types;
 import java.io.StringWriter;
 import java.lang.annotation.Annotation;
 import java.lang.annotation.Inherited;
 import java.lang.reflect.Field;
-import java.util.ArrayList;
-import java.util.Collection;
-import java.util.Collections;
-import java.util.HashMap;
-import java.util.LinkedHashMap;
-import java.util.List;
-import java.util.Map;
-
-import javax.lang.model.element.AnnotationMirror;
-import javax.lang.model.element.AnnotationValue;
-import javax.lang.model.element.Element;
-import javax.lang.model.element.ExecutableElement;
-import javax.lang.model.element.TypeElement;
-import javax.lang.model.element.TypeParameterElement;
-import javax.lang.model.element.VariableElement;
-import javax.lang.model.type.ArrayType;
-import javax.lang.model.type.DeclaredType;
-import javax.lang.model.type.TypeKind;
-import javax.lang.model.type.TypeMirror;
-import javax.lang.model.type.WildcardType;
-import javax.lang.model.util.ElementFilter;
-import javax.lang.model.util.Types;
-
-import org.androidannotations.annotations.EBean;
-import org.androidannotations.api.decorator.MethodCallable;
-import org.androidannotations.holder.EBeanHolder;
-import org.androidannotations.holder.EComponentHolder;
-import org.androidannotations.holder.GeneratedClassHolder;
-
-import com.sun.codemodel.JAnnotatable;
-import com.sun.codemodel.JAnnotationArrayMember;
-import com.sun.codemodel.JAnnotationUse;
-import com.sun.codemodel.JAnnotationValue;
-import com.sun.codemodel.JBlock;
-import com.sun.codemodel.JClass;
-import com.sun.codemodel.JCodeModel;
-import com.sun.codemodel.JDefinedClass;
-import com.sun.codemodel.JExpr;
-import com.sun.codemodel.JExpression;
-import com.sun.codemodel.JFieldRef;
-import com.sun.codemodel.JFormatter;
-import com.sun.codemodel.JInvocation;
-import com.sun.codemodel.JMethod;
-import com.sun.codemodel.JMod;
-import com.sun.codemodel.JStatement;
-import com.sun.codemodel.JSuperWildcard;
-import com.sun.codemodel.JSwitch;
-import com.sun.codemodel.JType;
-import com.sun.codemodel.JVar;
-
-import javax.lang.model.element.AnnotationMirror;
-import javax.lang.model.element.AnnotationValue;
-import javax.lang.model.element.Element;
-import javax.lang.model.element.ExecutableElement;
-import javax.lang.model.element.TypeElement;
-import javax.lang.model.element.TypeParameterElement;
-import javax.lang.model.element.VariableElement;
-import javax.lang.model.type.ArrayType;
-import javax.lang.model.type.DeclaredType;
-import javax.lang.model.type.TypeKind;
-import javax.lang.model.type.TypeMirror;
-import javax.lang.model.type.WildcardType;
-import javax.lang.model.util.ElementFilter;
-import javax.lang.model.util.Types;
-import java.io.StringWriter;
-import java.lang.annotation.Annotation;
-import java.lang.reflect.Field;
 import java.lang.reflect.Method;
 import java.util.*;
-import java.util.concurrent.Callable;
 
-import static com.sun.codemodel.JExpr._new;
-import static com.sun.codemodel.JExpr._null;
-import static com.sun.codemodel.JExpr.lit;
+import static com.sun.codemodel.JExpr.*;
 import static org.androidannotations.helper.ModelConstants.GENERATION_SUFFIX;
 
 public class APTCodeModelHelper {
@@ -248,7 +185,7 @@ public class APTCodeModelHelper {
 		return method;
 	}
 
-	private JType getReturnType(ExecutableElement executableElement, GeneratedClassHolder holder, Map<String, TypeMirror> actualTypes) {
+	public JType getReturnType(ExecutableElement executableElement, GeneratedClassHolder holder, Map<String, TypeMirror> actualTypes) {
 		TypeMirror returnType = executableElement.getReturnType();
 		if (returnType.getKind().isPrimitive()) {
 			return JType.parse(holder.codeModel(), returnType.toString());
@@ -461,7 +398,10 @@ public class APTCodeModelHelper {
 		return anonymousRunnableClass;
 	}
 
-	public JDefinedClass createMethodCallableClass(GeneratedClassHolder holder, JBlock previousBody, JMethod original) {
+	public JDefinedClass createMethodCallableClass(GeneratedClassHolder holder,
+												   JBlock previousBody,
+												   JMethod original,
+												   AnnotationMirror annotation) {
 		JCodeModel codeModel = holder.codeModel();
 
 		boolean addReturnNull = false;
@@ -474,9 +414,26 @@ public class APTCodeModelHelper {
 			type = type.boxify();
 		}
 
-		JClass genericCallable = codeModel.ref(MethodCallable.class).narrow(type);
+		JClass annotationType = typeMirrorToJClass(annotation.getAnnotationType(), holder);
+		JClass genericCallable = codeModel.ref(MethodCallable.class).narrow((JClass) type, annotationType);
 
 		JDefinedClass anonymousRunnableClass = codeModel.anonymousClass(genericCallable);
+
+		String generatedAnnotationName = annotation.getAnnotationType().toString() + ModelConstants.GENERATION_SUFFIX;
+		JDefinedClass annotationImpl = codeModel._getClass(generatedAnnotationName);
+
+		JMethod annotationMethod = anonymousRunnableClass.method(JMod.PUBLIC, annotationType, "getAnnotation");
+		JInvocation _new = _new(annotationImpl);
+		Element annotationElement = annotation.getAnnotationType().asElement();
+		for (ExecutableElement method : ElementFilter.methodsIn(annotationElement.getEnclosedElements())) {
+			AnnotationValue value = annotation.getElementValues().get(method);
+			if (value == null) {
+				value = method.getDefaultValue();
+			}
+			_new.arg(JExpr.direct(value.toString()));
+		}
+
+		annotationMethod.body()._return(_new);
 
 		JMethod runMethod = anonymousRunnableClass.method(JMod.PUBLIC, type, "call");
 		copyThrows(original, runMethod);

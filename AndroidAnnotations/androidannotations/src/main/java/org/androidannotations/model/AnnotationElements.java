@@ -40,6 +40,6 @@ public interface AnnotationElements {
 
 	Set<AnnotatedAndRootElements> getAncestorAnnotatedElements(String annotationName);
 
-	Map<String, TypeMirror> getDecorators();
+	Map<TypeElement, TypeMirror> getDecorators();
 
 }

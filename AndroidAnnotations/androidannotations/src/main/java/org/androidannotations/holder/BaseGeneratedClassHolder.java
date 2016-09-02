@@ -66,9 +66,13 @@ public abstract class BaseGeneratedClassHolder implements GeneratedClassHolder {
 			generatedClass.generify(typeParam.getSimpleName().toString(), bound);
 		}
 		setExtends();
+		addAnnotations();
+	}
+
+	protected void addAnnotations() {
 		codeModelHelper.addNonAAAnotations(generatedClass, annotatedElement.getAnnotationMirrors(), this);
 	}
-	
+
 	public JClass getAnnotatedClass() {
 		return annotatedClass;
 	}

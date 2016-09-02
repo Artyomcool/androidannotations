@@ -1,5 +1,6 @@
 package org.androidannotations.api.decorator;
 
+import java.lang.annotation.Annotation;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 
@@ -8,8 +9,9 @@ public class DecoratorExecutor {
     private static ConcurrentMap<Class<? extends DecoratorHandler>, DecoratorHandler> cache =
             new ConcurrentHashMap<Class<? extends DecoratorHandler>, DecoratorHandler>();
 
-    public static <T> T call(Class<? extends DecoratorHandler> clazz, MethodCallable<T> callable) {
-        DecoratorHandler handler = cache.get(clazz);
+    public static <T, A extends Annotation> T call(Class<? extends DecoratorHandler> clazz,
+                                                   MethodCallable<T, A> callable) {
+        DecoratorHandler<?> handler = cache.get(clazz);
         if (handler == null) {
             try {
                 handler = clazz.newInstance();
@@ -19,14 +21,16 @@ public class DecoratorExecutor {
                 throw new RuntimeException(e);
             }
 
-            DecoratorHandler anotherInstance = cache.putIfAbsent(clazz, handler);
+            DecoratorHandler<?> anotherInstance = cache.putIfAbsent(clazz, handler);
             if (anotherInstance != null) {
                 handler = anotherInstance;
             }
         }
 
         try {
-            return handler.call(callable);
+            @SuppressWarnings({"unchecked", "rawtypes"})
+            T result = (T) handler.call((MethodCallable) callable);
+            return result;
         } catch (Exception e) {
             return DecoratorExecutor.<RuntimeException, T>throwException(e);
         }

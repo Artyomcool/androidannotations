@@ -176,15 +176,15 @@ public class AndroidAnnotationProcessor extends AbstractProcessor {
 					for (Map.Entry<? extends ExecutableElement, ? extends AnnotationValue> entry : a.getElementValues().entrySet()) {
 						if (entry.getKey().getSimpleName().contentEquals("value")) {
 							TypeMirror value = (TypeMirror) entry.getValue().getValue();
-							extractedModel.putDecorator(annotation.getQualifiedName().toString(), value);
+							extractedModel.putDecorator(annotation, value);
 						}
 					}
 				}
 			}
 		}
 
-		for (final Map.Entry<String, TypeMirror> entry : extractedModel.getDecorators().entrySet()) {
-			annotationHandlers.add(new BaseAnnotationHandler<GeneratedClassHolder>(entry.getKey(), processingEnv) {
+		for (final Map.Entry<TypeElement, TypeMirror> entry : extractedModel.getDecorators().entrySet()) {
+			annotationHandlers.add(new BaseAnnotationHandler<GeneratedClassHolder>(entry.getKey().getQualifiedName().toString(), processingEnv) {
 				@Override
 				protected void validate(Element element, AnnotationElements validatedElements, IsValid valid) {
 
@@ -193,18 +193,36 @@ public class AndroidAnnotationProcessor extends AbstractProcessor {
 				@Override
 				public void process(Element element, GeneratedClassHolder holder) throws Exception {
 					ExecutableElement executableElement = (ExecutableElement) element;
+					TypeMirror annotationType = entry.getKey().asType();
+					AnnotationMirror annotation = findAnnotation(executableElement, annotationType);
 					JMethod delegatingMethod = codeModelHelper.overrideAnnotatedMethod(executableElement, holder);
 					JBlock previousBody = codeModelHelper.removeBody(delegatingMethod);
-					JDefinedClass anonymousRunnableClass = codeModelHelper.createMethodCallableClass(holder, previousBody, delegatingMethod);
+					JDefinedClass anonymousRunnableClass = codeModelHelper.createMethodCallableClass(
+							holder,
+							previousBody,
+							delegatingMethod,
+							annotation
+					);
 					JClass clazz = codeModelHelper.typeMirrorToJClass(entry.getValue(), holder);
 
 					JInvocation call = refClass(DecoratorExecutor.class).staticInvoke("call");
-					call.arg(dotclass(clazz)).arg(_new(anonymousRunnableClass).arg(delegatingMethod.name()));
+					call.arg(dotclass(clazz)).arg(_new(anonymousRunnableClass)
+							.arg(delegatingMethod.name())
+							.arg(holder.getAnnotatedElement().getQualifiedName().toString()));
 					if (delegatingMethod.type().name().equals("void")) {
 						delegatingMethod.body().add(call);
 					} else {
 						delegatingMethod.body()._return(call);
 					}
+				}
+
+				private AnnotationMirror findAnnotation(ExecutableElement element, TypeMirror annotationType) {
+					for (AnnotationMirror mirror : element.getAnnotationMirrors()) {
+						if (mirror.getAnnotationType() == annotationType) {
+							return mirror;
+						}
+					}
+					throw new IllegalArgumentException("Annotation " + annotationType + " not found on element " + element);
 				}
 			});
 		}
