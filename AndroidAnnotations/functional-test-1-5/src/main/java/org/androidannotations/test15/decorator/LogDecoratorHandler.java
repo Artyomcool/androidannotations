@@ -23,7 +23,7 @@ public class LogDecoratorHandler implements DecoratorHandler<Log> {
                 log.append(',');
             }
         }
-        log.append("): ").append(result).append(callable.getAnnotation().logReturnValue());
+        log.append("): ").append(callable.getAnnotation().logReturnValue() ? result : "");
 
         logs.add(log.toString());
         return result;

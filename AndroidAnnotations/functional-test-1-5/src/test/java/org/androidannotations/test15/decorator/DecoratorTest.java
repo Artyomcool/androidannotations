@@ -40,7 +40,7 @@ public class DecoratorTest {
 		EmptyActivityWithoutLayout_ context = new EmptyActivityWithoutLayout_();
 		BeanWithLog_ bean = BeanWithLog_.getInstance_(context);
 		bean.test1("1", 2);
-		assertThat(LogDecoratorHandler.logs).isEqualTo(Collections.singletonList("test1(a1:1,a2:2): null"));
+		assertThat(LogDecoratorHandler.logs).isEqualTo(Collections.singletonList("test1(a1:1,a2:2): "));
 	}
 
 	@Test

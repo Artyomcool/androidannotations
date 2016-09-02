@@ -16,6 +16,8 @@
 package org.androidannotations.eviewgroup;
 
 import org.androidannotations.AndroidAnnotationProcessor;
+import org.androidannotations.custom.IgnoreExceptions;
+import org.androidannotations.custom.IgnoreExceptionsHandler;
 import org.androidannotations.utils.AAProcessorTestHelper;
 import org.junit.Before;
 import org.junit.Test;
@@ -30,6 +32,8 @@ public class EViewGroupTest extends AAProcessorTestHelper {
 	@Test
 	public void viewGroupWithGenericCompiles() {
 		assertCompilationSuccessful(compileFiles(
+				IgnoreExceptions.class,
+				IgnoreExceptionsHandler.class,
 				SomeGenericViewGroup.class,
 				SomeGenericViewGroupExt.class));
 	}

@@ -15,7 +15,6 @@
  */
 package org.androidannotations.helper;
 
-import android.util.Log;
 import com.sun.codemodel.*;
 import org.androidannotations.annotations.EBean;
 import org.androidannotations.api.decorator.MethodCallable;
@@ -25,7 +24,6 @@ import org.androidannotations.holder.GeneratedClassHolder;
 import javax.lang.model.element.*;
 import javax.lang.model.type.*;
 import javax.lang.model.util.ElementFilter;
-import javax.lang.model.util.Elements;
 import javax.lang.model.util.Types;
 import java.io.StringWriter;
 import java.lang.annotation.Annotation;

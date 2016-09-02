@@ -6,7 +6,7 @@ import org.androidannotations.custom.Log;
 @EBean
 public class BeanWithLog {
 
-    @Log
+    @Log(logReturnValue = false)
     void test1(String a1, int a2) {
     }
 

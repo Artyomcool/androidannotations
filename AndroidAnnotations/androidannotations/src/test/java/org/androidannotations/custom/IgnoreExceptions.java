@@ -10,7 +10,7 @@ import java.lang.annotation.Target;
 
 @Retention(RetentionPolicy.SOURCE)
 @Target(ElementType.METHOD)
-@Decorator(DecoratorHandler.class)
+@Decorator(IgnoreExceptionsHandler.class)
 public @interface IgnoreExceptions {
 
 }
